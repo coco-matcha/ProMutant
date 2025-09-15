@@ -247,7 +247,7 @@ def main():
             print("Error: Model name is required")
             sys.exit(1)
         
-        run_spec = input("Name of directory (for example test-run.1-30): ").strip()
+        run_spec = input("Run ID (for example test-run.1-30): ").strip()
         if not run_spec:
             print("Error: Run specification is required")
             sys.exit(1)

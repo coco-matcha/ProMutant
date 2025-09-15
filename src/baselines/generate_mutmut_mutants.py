@@ -7,17 +7,18 @@ Adapted from Mutmut's file_mutation.py and node_mutation.py.
 """
 
 import json
+import argparse
 import sys
 import os
 import re
-import difflib
-from typing import Any, Union, cast, Set, List, Dict, Tuple
+from typing import Any, Union, cast, Set, List, Dict
 from collections.abc import Callable, Iterable, Sequence
+from collections import defaultdict
 from dataclasses import dataclass
 
 import libcst as cst
 import libcst.matchers as m
-from libcst.metadata import PositionProvider, MetadataWrapper
+from libcst.metadata import PositionProvider
 
 # Mutation operators from Mutmut
 OPERATORS_TYPE = Sequence[
@@ -391,7 +392,7 @@ class MutmutBasedGenerator:
                 continue
         
         # Remove duplicates
-        unique_mutants = mutants
+        unique_mutants = []
         seen = set()
         for mutant in mutants:
             if mutant not in seen:
@@ -599,15 +600,179 @@ def process_json_file(input_file: str, output_file: str):
     print(f"  - Total mutants generated: {total_mutants}")
     print(f"  - Output saved to: {output_file}")
 
-def main():
-    input_file = 'data/swe_bench_lite/extracted_code_contexts.json'
-    output_file = 'data/mutmut_baseline/mutmut_output.jsonl'
+
+def create_prediction_format(dataset_file_path: str, output_file_path: str, model_name: str = "mutmut") -> List[Dict]:
+    """
+    Create the final prediction format with patches.
     
-    if not os.path.exists(input_file):
-        print(f"Error: Input file '{input_file}' not found")
+    Args:
+        results: Results from OpenAI API
+        original_data: Original JSON data with patches
+        model_name: Name of the model used
+        
+    Returns:
+        List of predictions in required format
+    """
+    
+    with open(dataset_file_path, 'r') as f:
+        original_data = json.load(f)
+        f.close()
+    with open(output_file_path, 'r') as f:
+        results = [json.loads(line) for line in f]
+        f.close()
+
+    predictions = []
+
+    # For summarizing
+    error_mutant = 0
+
+    for mutant in results:
+        instance_id = mutant['instance_id'].split('_mutant_')[0]
+
+        if 'error' in mutant:
+            error_mutant += 1
+            print("Encountered error mutant with ID ",instance_id)
+            continue
+            
+        # Get original item to get patch content
+        original_item = [instance for instance in original_data if instance.get('instance_id')==instance_id]
+        assert len(original_item)==1, f"Expected to find 1 item matching ID with mutant but found {len(original_item)}"
+        original_item = original_item[0]
+
+        # If there is no replacement code, skip
+        if mutant['generated_code'] == "":
+            error_mutant += 1
+            print("No generated code found")
+            continue
+        # If there is no original code, skip
+        if mutant['original_code'] == "":
+            error_mutant += 1
+            print("No original code found")
+            continue
+
+        original_code = mutant['original_code'].replace('\n', '\n+')
+        generated_code = mutant['generated_code'].replace('\n', '\n+')
+            
+        # Replace original code with generated mutant
+        patch_content = original_item.get('patch')
+        if original_code in patch_content:
+            updated_patch = patch_content.replace(original_code, generated_code)
+        
+            # Create prediction object
+            predictions.append({
+                "instance_id": instance_id,
+                "model_name_or_path": model_name,
+                "model_patch": updated_patch
+            })
+        else:
+            error_mutant += 1
+
+
+    # Summary
+    print(f"📊 Summary:")
+    print(f"  Total mutants: {len(results)}")
+    print(f"  Error in mutants: {error_mutant}")
+    print(f"  Total mutants: {len(predictions)}")
+    
+    return predictions
+
+def split_jsonl_by_variants(input_file, output_dir="split_predictions", output_prefix="mutmut_predictions"):
+    """
+    Split JSONL file into multiple files where each file has one patch per instance
+    
+    Args:
+        input_file: Input JSONL file path
+        output_dir: Directory to save split files (default: "split_predictions")
+        output_prefix: Prefix for output files (default: "predictions")
+    """
+    
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Group patches by instance_id
+    instance_patches = defaultdict(list)
+    
+    # Read and group by instance_id
+    with open(input_file, 'r') as f:
+        for line in f:
+            pred = json.loads(line.strip())
+            instance_id = pred['instance_id']
+            instance_patches[instance_id].append(pred)
+    
+    # Find max number of variants
+    max_variants = max(len(patches) for patches in instance_patches.values())
+    
+    # Create split files
+    for variant_idx in range(max_variants):
+        output_file = os.path.join(output_dir, f"{output_prefix}_{variant_idx + 1}.jsonl")
+        
+        # Collect predictions for this variant
+        predictions = []
+        for instance_id, patches in instance_patches.items():
+            if variant_idx < len(patches):
+                predictions.append(patches[variant_idx])
+        
+        # Write file
+        with open(output_file, 'w') as f:
+            for pred in predictions:
+                f.write(json.dumps(pred) + '\n')
+
+def main():
+    """Main entry point with argument parsing"""
+    parser = argparse.ArgumentParser(
+        description="Generate Mutmut-based mutants and create SWE-Bench predictions",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    parser.add_argument(
+        '--input-file', '-i',
+        default='data/swe_bench_lite/extracted_code_contexts.json',
+        help='Input file with code contexts'
+    )
+    
+    parser.add_argument(
+        '--output-dir', '-o',
+        default='data/mutmut_baseline',
+        help='Output directory for results'
+    )
+    
+    parser.add_argument(
+        '--dataset-file', '-d',
+        default='data/swe_bench_lite/swe_bench_lite.json',
+        help='SWE-Bench dataset file'
+    )
+    
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug output'
+    )
+    
+    args = parser.parse_args()
+    
+    # Check input file exists
+    if not os.path.exists(args.input_file):
+        print(f"Error: Input file '{args.input_file}' not found")
         sys.exit(1)
     
-    process_json_file(input_file, output_file)
+    if not os.path.exists(args.dataset_file):
+        print(f"Error: Dataset file '{args.dataset_file}' not found")
+        sys.exit(1)
+    
+    output_file = f"{args.output_dir}/mutmut_output.jsonl"
+    predictions_file = f"{args.output_dir}/mutmut_predictions.jsonl"
+    process_json_file(args.input_file, output_file)
+
+    predictions = create_prediction_format(args.dataset_file, output_file)
+
+    # Save predictions to a file
+    print("Saving prediction format to ", predictions_file)
+    with open(predictions_file, 'w') as f:
+        for line in predictions:
+            json.dump(line, f)
+            f.write('\n')
+
+    split_jsonl_by_variants(predictions_file, args.output_dir)
 
 if __name__ == "__main__":
     main()

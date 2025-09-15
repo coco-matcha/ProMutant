@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import argparse
 import tempfile
 from collections import defaultdict
 from typing import List, Dict, Optional
@@ -331,27 +332,41 @@ def process_back_translation_output(raw_output_file: str, dataset_file: str = "s
     
     return predictions
 
-
 def main():
     """Main execution function."""
-    # Configuration
-    EXPERIMENT_ID = "promutant"
-    MODEL_NAME = "gpt-4o"
-    DATASET_FILE = "data/swe_bench_lite/swe_bench_lite.json"
-    EXPERIMENTS_DIR = "data/promutant"
+    parser = argparse.ArgumentParser(
+        description="Create SWE-Bench predictions from mutant output",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     
-    # File paths
-    raw_output_file = f"{EXPERIMENTS_DIR}/{EXPERIMENT_ID}_{MODEL_NAME}_output.jsonl"
-    predictions_file = f"{EXPERIMENTS_DIR}/{EXPERIMENT_ID}_{MODEL_NAME}_predictions.jsonl"
-    split_output_dir = f"{EXPERIMENTS_DIR}/split_predictions"
-    split_output_prefix = f"{MODEL_NAME}_predictions"
+    parser.add_argument('--mutants-file', required=True, 
+                       help='Path to mutants JSONL file')
+    parser.add_argument('--dataset-file', default='data/swe_bench_lite/swe_bench_lite.json',
+                       help='Path to SWE-Bench dataset file')
+    parser.add_argument('--output-dir', default='data/promutant',
+                       help='Output directory for predictions files')
+    parser.add_argument('--model-name', default='gpt-4o',
+                       help='Model name for predictions')
+    parser.add_argument('--split-prefix', 
+                       help='Prefix for split files (default: derived from model)')
+    
+    args = parser.parse_args()
+    
+    # Create output directories
+    os.makedirs(args.output_dir, exist_ok=True)
+    split_dir = f'{args.output_dir}/split_predictions'
+    os.makedirs(split_dir, exist_ok=True)
+    
+    # Set file path, default split prefix if not provided
+    predictions_file = f'{args.output_dir}/predictions.jsonl'
+    split_prefix = args.split_prefix or f"{args.model_name}_predictions"
     
     # Process output file
-    print(f"Processing {raw_output_file}...")
+    print(f"Processing {args.mutants_file}...")
     predictions = process_back_translation_output(
-        raw_output_file=raw_output_file,
-        dataset_file=DATASET_FILE,
-        model_name=MODEL_NAME
+        raw_output_file=args.mutants_file,
+        dataset_file=args.dataset_file,
+        model_name=args.model_name
     )
     
     if not predictions:
@@ -366,8 +381,8 @@ def main():
     print(f"Splitting predictions into variants...")
     FileManager.split_predictions_by_variants(
         input_file=predictions_file,
-        output_dir=split_output_dir,
-        output_prefix=split_output_prefix
+        output_dir=split_dir,
+        output_prefix=split_prefix
     )
     
     print("Processing complete!")

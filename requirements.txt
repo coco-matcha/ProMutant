@@ -1,0 +1,16 @@
+# Core dependencies
+openai>=1.0.0
+libcst>=1.0.0
+
+# System requirements note:
+# This package also requires patchutils to be installed at the system level:
+# 
+# On Ubuntu/Debian:
+#   sudo apt-get install patchutils
+# 
+# On macOS with Homebrew:
+#   brew install patchutils
+# 
+# On CentOS/RHEL/Fedora:
+#   sudo yum install patchutils  (CentOS/RHEL)
+#   sudo dnf install patchutils  (Fedora)

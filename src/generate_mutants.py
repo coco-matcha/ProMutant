@@ -1,5 +1,7 @@
 import openai
 import re
+import os
+import argparse
 import json
 from typing import List, Dict, Optional
 
@@ -226,35 +228,50 @@ Return only the bug description without any explanations, comments, or markdown 
 def main():
     """Main execution function."""
     # Configuration
-    API_KEY = "your-api-key-here"  # Replace with actual API key
-    MODEL = "gpt-4o"
-    CONTEXT_FILE = 'data/swe_bench_lite/extracted_code_contexts.json'
-    OUTPUT_FILE = f'data/promutant/promutant_{MODEL}_output.jsonl'
+
+    parser = argparse.ArgumentParser(
+        description="Generate ProMutant mutants",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    parser.add_argument('--api-key', required=True, help='OpenAI API key')
+    parser.add_argument('--model', default='gpt-4o', help='OpenAI model to use')
+    parser.add_argument('--context-file', default='data/swe_bench_lite/extracted_code_contexts.json',
+                       help='Path to buggy code contexts JSON file')
+    parser.add_argument('--loops', '-l', default=3, help='OpenAI model to use')
+    parser.add_argument('--experiment-name', default='promutant', help='Experiment name')
+    parser.add_argument('--output-dir', '-o', default='data/promutant', help='Output directory')
+
+    args = parser.parse_args()
+    OUTPUT_FILE = f'{args.output_dir}/{args.experiment_name}_{args.model}_output.jsonl'
 
     # Load and prepare data
     try:
-        with open(CONTEXT_FILE, 'r') as f:
+        with open(args.context_file, 'r') as f:
             context_list = json.load(f)
     except FileNotFoundError:
-        print(f"Context file not found: {CONTEXT_FILE}")
+        print(f"Context file not found: {args.context_file}")
         return
     
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+    
     # Initialize generator
-    generator = BackTranslationGenerator(API_KEY, MODEL)
+    generator = BackTranslationGenerator(args.api_key, args.model)
     
     # Process each context item
-    for i, code_context_item in enumerate(context_list, 1):
+    for i, code_context_item in enumerate(context_list[:3], 1):
         print(f"\nProcessing item {i}/{len(context_list)}")
         
         try:
             results = generator.run_back_translation(
                 code_context_item, 
                 max_retries=3, 
-                num_loops=2
+                num_loops=args.loops
             )
             
-            # Append results to output file
-            with open(OUTPUT_FILE, 'a') as f:
+            # Write results to output file
+            with open(OUTPUT_FILE, 'w') as f:
                 for result in results:
                     json.dump(result, f)
                     f.write('\n')
