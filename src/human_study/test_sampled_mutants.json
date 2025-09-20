@@ -1,0 +1,38 @@
+[
+    {
+    "mutant_id": 1,
+    "instance_id": "sphinx-doc__sphinx-7686",
+    "original_code": "import inspect",
+    "generated_code": "# The bug is likely caused by not importing inspect, which is necessary to filter out imported members.",
+    "full_function": "    :copyright: Copyright 2007-2020 by the Sphinx team, see AUTHORS.\n    :license: BSD, see LICENSE for details.\n\"\"\"\n\nimport argparse\n-import inspect\n+# The bug is likely caused by not importing inspect, which is necessary to filter out imported members.\nimport os\nimport pkgutil\nimport pydoc\nimport re\nimport sys"
+  },
+  {
+    "mutant_id": 2,
+    "instance_id": "pytest-dev__pytest-7373",
+    "original_code": "                        result = compiled_eval(expr, d)",
+    "generated_code": "                        if expr in cache:\n                            result = cache[expr]\n                        else:\n                            result = compiled_eval(expr, d)\n                            cache[expr] = result",
+    "full_function": "    def _istrue(self) -> bool:\n        if hasattr(self, \"result\"):\n            result = getattr(self, \"result\")  # type: bool\n            return result\n        self._marks = self._get_marks()\n\n        if self._marks:\n            self.result = False\n            for mark in self._marks:\n                self._mark = mark\n                if \"condition\" not in mark.kwargs:\n                    args = mark.args\n                else:\n                    args = (mark.kwargs[\"condition\"],)\n\n                for expr in args:\n                    self.expr = expr\n                    if isinstance(expr, str):\n                        d = self._getglobals()\n-                        result = compiled_eval(expr, d)\n+                        if expr in cache:\n+                            result = cache[expr]\n+                        else:\n+                            result = compiled_eval(expr, d)\n+                            cache[expr] = result\n                    else:\n                        if \"reason\" not in mark.kwargs:\n                            # XXX better be checked at collection time\n                            msg = (\n                                \"you need to specify reason=STRING \"\n                                \"when using booleans as conditions.\"\n                            )\n                            fail(msg)\n                        result = bool(expr)\n                    if result:\n                        self.result = True\n                        self.reason = mark.kwargs.get(\"reason\", None)\n                        self.expr = expr\n                        return self.result\n\n                if not args:\n                    self.result = True\n                    self.reason = mark.kwargs.get(\"reason\", None)\n                    return self.result\n        return False\n"
+  },  
+  {
+    "mutant_id": 3,
+    "instance_id": "pytest-dev__pytest-7373",
+    "original_code": "import _pytest._code",
+    "generated_code": "pass",
+    "full_function": "from _pytest.config import Config\nfrom _pytest.nodes import Item\nfrom _pytest.store import StoreKey\n\n\ndef compiled_eval(expr: str, d: Dict[str, object]) -> Any:\n-    import _pytest._code\n+    pass\n\n\ndef cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:\n    default = {}  # type: Dict[str, object]\n    evalcache = config._store.setdefault(evalcache_key, default)"
+  },
+  {
+    "mutant_id": 4,
+    "instance_id": "sympy__sympy-16281",
+    "original_code": "sign_lines = [horizontal_chr + corner_chr + (horizontal_chr * (width-2)) + corner_chr + horizontal_chr]",
+    "generated_code": "sign_lines = [corner_chr + horizontal_chr + (corner_chr * (width-2)) + horizontal_chr + corner_chr]",
+    "full_function": "def _print_Product(self, expr):\n        func = expr.term\n        pretty_func = self._print(func)\n\n        horizontal_chr = xobj('_', 1)\n        corner_chr = xobj('_', 1)\n        vertical_chr = xobj('|', 1)\n\n        if self._use_unicode:\n            # use unicode corners\n            horizontal_chr = xobj('-', 1)\n            corner_chr = u'\\N{BOX DRAWINGS LIGHT DOWN AND HORIZONTAL}'\n\n        func_height = pretty_func.height()\n\n        first = True\n        max_upper = 0\n        sign_height = 0\n\n        for lim in expr.limits:\n            width = (func_height + 2) * 5 // 3 - 2\n            sign_lines = []\n            sign_lines.append(corner_chr + (horizontal_chr*width) + corner_chr)\n            for i in range(func_height + 1):\n-            sign_lines = [horizontal_chr + corner_chr + (horizontal_chr * (width-2)) + corner_chr + horizontal_chr]\n+            sign_lines = [corner_chr + horizontal_chr + (corner_chr * (width-2)) + horizontal_chr + corner_chr]\n\n            pretty_sign = stringPict('')\n            pretty_sign = prettyForm(*pretty_sign.stack(*sign_lines))\n\n            pretty_upper = self._print(lim[2])\n            pretty_lower = self._print(Equality(lim[0], lim[1]))\n\n            max_upper = max(max_upper, pretty_upper.height())\n\n            if first:\n                sign_height = pretty_sign.height()\n\n            pretty_sign = prettyForm(*pretty_sign.above(pretty_upper))\n            pretty_sign = prettyForm(*pretty_sign.below(pretty_lower))\n\n            if first:\n                pretty_func.baseline = 0\n                first = False\n\n            height = pretty_sign.height()\n            padding = stringPict('')\n            padding = prettyForm(*padding.stack(*[' ']*(height - 1)))\n            pretty_sign = prettyForm(*pretty_sign.right(padding))\n\n            pretty_func = prettyForm(*pretty_sign.right(pretty_func))\n\n        pretty_func.baseline = max_upper + sign_height//2\n        pretty_func.binding = prettyForm.MUL\n        return pretty_func"
+  },
+  {
+    "mutant_id": 5,
+    "instance_id": "django__django-12708",
+    "original_code": "self._delete_composed_index(",
+    "generated_code": "// self._delete_composed_index(",
+    "full_function": "def alter_index_together(self, model, old_index_together, new_index_together):\n        \"\"\"\n        Deal with a model changing its index_together. The input\n        index_togethers must be doubly-nested, not the single-nested\n        [\"foo\", \"bar\"] format.\n        \"\"\"\n        olds = {tuple(fields) for fields in old_index_together}\n        news = {tuple(fields) for fields in new_index_together}\n        # Deleted indexes\n        for fields in olds.difference(news):\n-            self._delete_composed_index(\n+            // self._delete_composed_index(\n        # Created indexes\n        for field_names in news.difference(olds):\n            fields = [model._meta.get_field(field) for field in field_names]\n            self.execute(self._create_index_sql(model, fields, suffix=\"_idx\"))"
+  }
+  
+]

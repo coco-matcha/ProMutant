@@ -20,7 +20,10 @@ ProMutant is a novel approach that uses Large Language Models (LLMs) to generate
 │   ├── run_promutant.sh                   # Script to run ProMutant
 │   └── human_study/             # Human evaluation code
 │       ├── sample_baseline_mutants.py      # Sample from baseline output
-│       └── sample_promutant_mutants.py     # Sample from ProMutant output
+│       ├── sample_promutant_mutants.py     # Sample from ProMutant output
+│       ├── README.md                       # Instructions for participants of the human study
+│       ├── object_browser.py               # The labeling program 
+│       └── test_sampled_mutants.json       # Sample mutants for participants to familiarize with labeling
 ├── data/                        # Data files and results
 │   ├── swe_bench_lite/          # SWE-Bench Lite dataset
 │   │   ├── swe_bench_lite.json                 # Original dataset
