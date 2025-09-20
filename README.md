@@ -44,7 +44,8 @@ ProMutant is a novel approach that uses Large Language Models (LLMs) to generate
 
 - Python 3.8+
 - OpenAI API key (for LLM-based methods)
-- [SWE-Bench evaluation environment]{https://github.com/SWE-bench/SWE-bench}
+- [SWE-Bench evaluation environment](https://github.com/SWE-bench/SWE-bench)
+- [Patchutils](https://github.com/twaugh/patchutils)
 - Git
 
 ### Installation
